@@ -36,6 +36,13 @@
 
 #include "face/null-face.hpp"
 
+#include "/home/whd/ndnSIM2.8/FStest/extensions/ndn-wifi-net-device-transport.hpp"
+#include "ns3/ndnSIM/model/ndn-net-device-transport.hpp"
+#include "ns3/node-container.h"
+#include "ns3/node.h"
+#include "ns3/mobility-model.h"
+
+
 namespace nfd {
 
 NFD_LOG_INIT(Forwarder);
@@ -89,9 +96,43 @@ Forwarder::Forwarder(FaceTable& faceTable)
 
 Forwarder::~Forwarder() = default;
 
+bool
+Forwarder::isInRegion(const nfd::FaceEndpoint &ingress) {
+  const double Rth = 100;
+  ns3::NodeContainer nodes = ns3::NodeContainer::GetGlobal();
+  // consumer接收到包
+  if (ingress.face.getId() == 256+nodes.GetN()) {
+    return true;
+  }
+  std::string localUri =ingress.face.getLocalUri().getHost();
+  ns3::Ptr<ns3::Node> receiveNode;
+  ns3::NodeContainer::Iterator it = std::find_if(nodes.Begin(), nodes.End(),
+        [&localUri](const ns3::Ptr<ns3::Node>& node) {
+    ns3::Address address = node->GetDevice(0)->GetAddress();
+    std::string uri = boost::lexical_cast<std::string>(ns3::Mac48Address::ConvertFrom(address));
+            return uri == localUri;
+        });
+  // 初始建立时会有很多localhost的包，其face没有Uri，因此查询不到
+  if (it==nodes.end()) { return true;}
+
+  receiveNode = *it;
+  // 节点创建的face是从257开始依据节点序号依次递增的，据此计算face对端节点的序号
+  int sendNodeId = (ingress.face.getId() - 257) + (receiveNode->GetId() + 257 <= ingress.face.getId());
+  ns3::Ptr<ns3::Node> sendNode = nodes[sendNodeId];
+  ns3::Ptr<ns3::MobilityModel> mobility1 = sendNode->GetObject<ns3::MobilityModel>();
+  ns3::Ptr<ns3::MobilityModel> mobility2 = receiveNode->GetObject<ns3::MobilityModel>();
+  double distance = mobility2->GetDistanceFrom(mobility1);
+  return (distance < Rth);
+}
+
+
 void
 Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& interest)
 {
+  if ( !isInRegion(ingress)) {
+    NFD_LOG_DEBUG("Is Not in Region");
+    return;
+  }
   // receive Interest
   NFD_LOG_DEBUG("onIncomingInterest in=" << ingress << " interest=" << interest.getName());
   interest.setTag(make_shared<lp::IncomingFaceIdTag>(ingress.face.getId()));
@@ -282,6 +323,11 @@ Forwarder::onInterestFinalize(const shared_ptr<pit::Entry>& pitEntry)
 void
 Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
 {
+  if(!isInRegion(ingress)) {
+    NFD_LOG_DEBUG("Is Not in Region");
+    return;
+  }
+  
   // receive Data
   NFD_LOG_DEBUG("onIncomingData in=" << ingress << " data=" << data.getName());
   data.setTag(make_shared<lp::IncomingFaceIdTag>(ingress.face.getId()));

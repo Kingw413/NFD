@@ -165,6 +165,10 @@ public: // forwarding entrypoints and tables
     return m_networkRegionTable;
   }
 
+
+  bool
+  isInRegion(const nfd::FaceEndpoint &ingress);
+
 public:
   /** \brief trigger before PIT entry is satisfied
    *  \sa Strategy::beforeSatisfyInterest
@@ -276,6 +280,7 @@ PROTECTED_WITH_TESTS_ELSE_PRIVATE:
   {
     trigger(m_strategyChoice.findEffectiveStrategy(pitEntry));
   }
+
 
 private:
   ForwarderCounters m_counters;
