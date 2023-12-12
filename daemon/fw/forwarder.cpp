@@ -100,7 +100,7 @@ bool
 Forwarder::isInRegion(const nfd::FaceEndpoint &ingress) {
   const double Rth = 100;
   ns3::NodeContainer nodes = ns3::NodeContainer::GetGlobal();
-  // consumer接收到包
+  // consumer或producer接收到包
   if (ingress.face.getId() == 256+nodes.GetN()) {
     return true;
   }
