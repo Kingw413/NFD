@@ -98,7 +98,7 @@ Forwarder::~Forwarder() = default;
 
 bool
 Forwarder::isInRegion(const nfd::FaceEndpoint &ingress) {
-  const double Rth = 100;
+  const double Rth = 500;
   ns3::NodeContainer nodes = ns3::NodeContainer::GetGlobal();
   // consumer或producer接收到包
   if (ingress.face.getId() == 256+nodes.GetN()) {
@@ -176,7 +176,8 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
   }
   if (hasDuplicateNonceInPit) {
     // goto Interest loop pipeline
-    this->onInterestLoop(ingress, interest);
+    // Ad Hoc场景下直接取消Nack
+    // this->onInterestLoop(ingress, interest);  
     this->dispatchToStrategy(*pitEntry,
       [&] (fw::Strategy& strategy) { strategy.afterReceiveLoopedInterest(ingress, interest, *pitEntry); });
     return;
